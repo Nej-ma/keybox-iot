@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CESI Key Manager - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .room-card { transition: all 0.3s; }
+        .status-badge { font-size: 1.2em; }
+        .card-in { border-left: 10px solid #198754; background-color: #f8fff9; } /* Vert */
+        .card-out { border-left: 10px solid #dc3545; background-color: #fff8f8; } /* Rouge */
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <h1 class="mb-4 text-center">🔑 Suivi des Clés - Campus CESI</h1>
+
+    <div id="live-toast" class="alert alert-info" style="display:none;">En attente de données...</div>
+
+    <div class="row" id="rooms-container">
+        <div class="col-md-4 mb-3" id="card-B202">
+            <div class="card room-card card-out shadow-sm">
+                <div class="card-body">
+                    <h3 class="card-title">Salle B202</h3>
+                    <p class="card-text">Statut: <span class="badge bg-danger status-badge" id="status-B202">CLÉ ABSENTE</span></p>
+                    <small class="text-muted">Dernière mise à jour: <span id="time-B202">--:--</span></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<script>
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log("Connecté au serveur Edge!");
+        document.getElementById('live-toast').innerText = "Système Connecté - Prêt";
+        document.getElementById('live-toast').style.display = 'block';
+    });
+
+    // ÉCOUTE DE L'ÉVÉNEMENT ENVOYÉ PAR PYTHON
+    socket.on('update_room', (data) => {
+        console.log("Mise à jour reçue:", data);
+        updateDashboard(data);
+    });
+
+    function updateDashboard(data) {
+        // data attendu : { room: "A101", state: "IN" ou "OUT", key: "xyz" }
+        const roomId = data.room;
+        const isKeyPresent = (data.state === "IN");
+
+        // Créer l'ID unique pour le DOM (ex: card-A101)
+        let card = document.getElementById(`card-${roomId}`);
+
+        // Si la carte n'existe pas, on la crée
+        if (!card) {
+            const container = document.getElementById('rooms-container');
+            const newCardHTML = `
+                <div class="col-md-4 mb-3" id="card-${roomId}">
+                    <div class="card room-card shadow-sm">
+                        <div class="card-body">
+                            <h3 class="card-title">Salle ${roomId}</h3>
+                            <p class="card-text">Statut: <span class="badge status-badge" id="status-${roomId}">...</span></p>
+                            <small class="text-muted">Dernière mise à jour: <span id="time-${roomId}"></span></small>
+                        </div>
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', newCardHTML);
+            card = document.getElementById(`card-${roomId}`);
+        }
+
+        // Mise à jour visuelle
+        const badge = document.getElementById(`status-${roomId}`);
+        const timeSpan = document.getElementById(`time-${roomId}`);
+        const cardInner = card.querySelector('.card');
+
+        const now = new Date().toLocaleTimeString();
+
+        if (isKeyPresent) {
+            // Clé Présente (Vert)
+            cardInner.className = "card room-card card-in shadow-sm";
+            badge.className = "badge bg-success status-badge";
+            badge.innerText = "CLÉ DISPONIBLE";
+        } else {
+            // Clé Absente (Rouge)
+            cardInner.className = "card room-card card-out shadow-sm";
+            badge.className = "badge bg-danger status-badge";
+            badge.innerText = "CLÉ ABSENTE";
+        }
+
+        timeSpan.innerText = now;
+    }
+</script>
+
+</body>
+</html>
