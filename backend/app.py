@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 from xbee_handler import XBeeService
 import threading
 import time
@@ -12,6 +12,9 @@ app = Flask(__name__, template_folder="../frontend/templates")
 app.config['SECRET_KEY'] = 'cesi_secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Variable globale pour tracker l'état de connexion XBee
+xbee_connected = False
+
 # --- FONCTION DECLENCHEE QUAND UN MESSAGE XBEE ARRIVE ---
 def process_xbee_data(data):
     # data contient: {'room': 'A101', 'state': 'IN', ...}
@@ -23,8 +26,17 @@ def process_xbee_data(data):
 try:
     xbee_service = XBeeService(XBEE_PORT, BAUD_RATE, process_xbee_data)
     xbee_service.start()
+    xbee_connected = True
+    print("[SUCCESS] XBee connecté et opérationnel!")
 except Exception as e:
+    xbee_connected = False
     print(f"ATTENTION: XBee non démarré (Test UI uniquement). Erreur: {e}")
+
+# --- ÉVÉNEMENT: Quand un client se connecte au WebSocket ---
+@socketio.on('connect')
+def handle_connect():
+    # On envoie immédiatement l'état du XBee au client
+    emit('xbee_status', {'connected': xbee_connected})
 
 # --- ROUTES WEB ---
 @app.route('/')
@@ -32,5 +44,5 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    # host='0.0.0.0' permet d'y accéder depuis le réseau local (Wifi CESI)
+    # host='0.0.0.0' permet d'y accéder depuis le réseau local (Wifi CESI) à changé si ça marche pas
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)

@@ -3,70 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CESI Key Manager - Dashboard</title>
+    <title>CESI Smart Key - Dashboard</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+
     <style>
-        .room-card { transition: all 0.3s; }
-        .status-badge { font-size: 1.2em; }
-        .card-in { border-left: 10px solid #198754; background-color: #f8fff9; } /* Vert */
-        .card-out { border-left: 10px solid #dc3545; background-color: #fff8f8; } /* Rouge */
+        body { background-color: #f0f2f5; font-family: 'Roboto', sans-serif; }
+        
+        /* Navbar style CESI (Inchangé) */
+        .navbar {
+            background: linear-gradient(135deg, #ce0033 0%, #a10028 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-brand { font-weight: 700; color: white !important; font-size: 1.5rem; }
+
+        /* --- NOUVEAU STYLE DES CARTES (Épuré) --- */
+        .room-card {
+            border: 1px solid #eee; 
+            border-radius: 12px; 
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s; 
+            overflow: hidden; 
+            position: relative;
+        }
+        
+        .room-card.updated { animation: pulse-update 0.5s; }
+
+        .card-header-custom {
+            padding: 15px; font-weight: bold; font-size: 1.2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #f0f0f0;
+            background-color: #fff;
+            color: #333;
+        }
+        .card-body-custom { padding: 20px; text-align: center; }
+
+        /* CERCLE ICONE (Design Rond Simple) */
+        .icon-box {
+            width: 90px; height: 90px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; margin-bottom: 15px; 
+            border: 4px solid #fff;
+            transition: all 0.3s;
+        }
+
+        /* --- ÉTAT 1 : CLÉ PRÉSENTE (Vert) --- */
+        .status-in .icon-box { 
+            background-color: #d1e7dd; 
+            color: #198754; 
+            box-shadow: 0 0 0 3px #198754;
+        }
+        .status-in .status-text { color: #198754; }
+        .status-in { border-bottom: 5px solid #198754; }
+
+        /* --- ÉTAT 2 : CLÉ ABSENTE (Rouge) --- */
+        .status-out .icon-box { 
+            background-color: #f8d7da; 
+            color: #dc3545; 
+            box-shadow: 0 0 0 3px #dc3545;
+        }
+        .status-out .status-text { color: #dc3545; }
+        .status-out { border-bottom: 5px solid #dc3545; }
+
+        /* TEXTES */
+        .status-text { font-size: 1.3rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .timestamp { font-size: 0.85rem; color: #adb5bd; margin-top: 10px; display: block; }
+
+        @keyframes pulse-update {
+            0% { opacity: 0.6; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
-<div class="container py-5">
-    <h1 class="mb-4 text-center">🔑 Suivi des Clés - Campus CESI</h1>
+<nav class="navbar navbar-dark mb-5">
+    <div class="container">
+        <span class="navbar-brand">
+            <i class="fa-solid fa-school-flag me-2"></i> Campus CESI - Gestion des Clés
+        </span>
+        <span class="text-white" id="connection-status">
+            <i class="fa-solid fa-circle-notch fa-spin"></i> Connexion...
+        </span>
+    </div>
+</nav>
 
-    <div id="live-toast" class="alert alert-info" style="display:none;">En attente de données...</div>
-
-    <div class="row" id="rooms-container">
-        <div class="col-md-4 mb-3" id="card-B202">
-            <div class="card room-card card-out shadow-sm">
-                <div class="card-body">
-                    <h3 class="card-title">Salle B202</h3>
-                    <p class="card-text">Statut: <span class="badge bg-danger status-badge" id="status-B202">CLÉ ABSENTE</span></p>
-                    <small class="text-muted">Dernière mise à jour: <span id="time-B202">--:--</span></small>
+<div class="container">
+    <div class="row g-4" id="rooms-container">
+        
+        <div class="col-12 col-md-6 col-lg-4 col-xl-3" id="wrapper-206">
+            <div class="room-card status-out shadow-sm" id="card-206">
+                <div class="card-header-custom">
+                    <span>SALLE 206</span>
+                    <i class="fa-solid fa-door-open text-muted"></i>
+                </div>
+                <div class="card-body-custom">
+                    <div class="icon-box" id="icon-box-206">
+                        <i class="fa-solid fa-key" id="icon-206"></i>
+                    </div>
+                    <div class="status-text" id="status-text-206">CLÉ ABSENTE</div>
+                    <span class="timestamp">MàJ : <span id="time-206">--:--</span></span>
                 </div>
             </div>
         </div>
+        
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-
 <script>
     const socket = io();
 
     socket.on('connect', () => {
-        console.log("Connecté au serveur Edge!");
-        document.getElementById('live-toast').innerText = "Système Connecté - Prêt";
-        document.getElementById('live-toast').style.display = 'block';
+        const statusSpan = document.getElementById('connection-status');
+        statusSpan.innerHTML = '<i class="fa-solid fa-wifi"></i> Serveur Web connecté';
+        statusSpan.classList.add('fw-bold');
     });
 
-    // ÉCOUTE DE L'ÉVÉNEMENT ENVOYÉ PAR PYTHON
+    socket.on('disconnect', () => {
+        const statusSpan = document.getElementById('connection-status');
+        statusSpan.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Déconnecté';
+    });
+
+    socket.on('xbee_status', (data) => {
+        const statusSpan = document.getElementById('connection-status');
+        if (data.connected) {
+            statusSpan.innerHTML = '<i class="fa-solid fa-tower-broadcast"></i> XBee connecté - Système opérationnel';
+            statusSpan.style.color = '#d1fae5';
+        } else {
+            statusSpan.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> XBee déconnecté - Mode démo';
+            statusSpan.style.color = '#fed7aa';
+        }
+    });
+
     socket.on('update_room', (data) => {
-        console.log("Mise à jour reçue:", data);
         updateDashboard(data);
     });
 
     function updateDashboard(data) {
-        // data attendu : { room: "A101", state: "IN" ou "OUT", key: "xyz" }
-        const roomId = data.room;
+        const roomId = data.room; 
         const isKeyPresent = (data.state === "IN");
-
-        // Créer l'ID unique pour le DOM (ex: card-A101)
+        
         let card = document.getElementById(`card-${roomId}`);
 
-        // Si la carte n'existe pas, on la crée
         if (!card) {
             const container = document.getElementById('rooms-container');
             const newCardHTML = `
-                <div class="col-md-4 mb-3" id="card-${roomId}">
-                    <div class="card room-card shadow-sm">
-                        <div class="card-body">
-                            <h3 class="card-title">Salle ${roomId}</h3>
-                            <p class="card-text">Statut: <span class="badge status-badge" id="status-${roomId}">...</span></p>
-                            <small class="text-muted">Dernière mise à jour: <span id="time-${roomId}"></span></small>
+                <div class="col-12 col-md-6 col-lg-4 col-xl-3" id="wrapper-${roomId}">
+                    <div class="room-card shadow-sm" id="card-${roomId}">
+                        <div class="card-header-custom">
+                            <span>SALLE ${roomId}</span>
+                            <i class="fa-solid fa-door-closed text-muted"></i>
+                        </div>
+                        <div class="card-body-custom">
+                            <div class="icon-box" id="icon-box-${roomId}">
+                                <i class="fa-solid fa-key" id="icon-${roomId}"></i>
+                            </div>
+                            <div class="status-text" id="status-text-${roomId}">--</div>
+                            <span class="timestamp">MàJ : <span id="time-${roomId}">--:--</span></span>
                         </div>
                     </div>
                 </div>`;
@@ -74,26 +171,32 @@
             card = document.getElementById(`card-${roomId}`);
         }
 
-        // Mise à jour visuelle
-        const badge = document.getElementById(`status-${roomId}`);
+        const iconBox = document.getElementById(`icon-box-${roomId}`);
+        const statusText = document.getElementById(`status-text-${roomId}`);
         const timeSpan = document.getElementById(`time-${roomId}`);
-        const cardInner = card.querySelector('.card');
+        
+        const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        timeSpan.innerText = now;
 
-        const now = new Date().toLocaleTimeString();
-
+        // --- MISE A JOUR DU STATUS ---
         if (isKeyPresent) {
-            // Clé Présente (Vert)
-            cardInner.className = "card room-card card-in shadow-sm";
-            badge.className = "badge bg-success status-badge";
-            badge.innerText = "CLÉ DISPONIBLE";
+            // CAS 1 : VERT (Dispo)
+            card.className = "room-card status-in shadow-sm";
+            statusText.innerText = "CLÉ DISPO";
+            // On s'assure que l'icône est une clé
+            iconBox.innerHTML = '<i class="fa-solid fa-key"></i>';
         } else {
-            // Clé Absente (Rouge)
-            cardInner.className = "card room-card card-out shadow-sm";
-            badge.className = "badge bg-danger status-badge";
-            badge.innerText = "CLÉ ABSENTE";
+            // CAS 2 : ROUGE (Absente)
+            card.className = "room-card status-out shadow-sm";
+            statusText.innerText = "CLÉ ABSENTE";
+            // On garde l'icône de clé (mais elle sera rouge via le CSS)
+            iconBox.innerHTML = '<i class="fa-solid fa-key"></i>';
         }
 
-        timeSpan.innerText = now;
+        // Animation de rafraichissement
+        card.classList.remove('updated');
+        void card.offsetWidth; 
+        card.classList.add('updated');
     }
 </script>
 

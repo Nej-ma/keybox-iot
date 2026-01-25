@@ -90,13 +90,13 @@ L'Arduino doit envoyer un payload JSON via XBee :
 
 ```json
 {
-  "room": "B202",
+  "room": "206",
   "key": "UID_RFID_DE_LA_CLE",
   "state": "IN"
 }
 ```
 
-- **`room`** : Identifiant de la salle (ex: "A101", "B202")
+- **`room`** : Identifiant de la salle (ex: "106", "107", "206", "207")
 - **`key`** : UID du tag RFID lu par le RC522
 - **`state`** :
   - `"IN"` → Clé déposée (salle ouverte)
@@ -123,7 +123,7 @@ void sendKeyEvent(String room, String keyUID, String state) {
 void loop() {
   // Après lecture RFID...
   if (cardDetected) {
-    sendKeyEvent("B202", "A3:F2:11:8C", "IN");
+    sendKeyEvent("206", "A3:F2:11:8C", "IN");
   }
 }
 ```
@@ -154,8 +154,8 @@ Pour simuler un événement depuis Python (console interactive) :
 ```python
 from backend.app import socketio
 
-# Simuler une clé déposée en salle A101
-socketio.emit('update_room', {'room': 'A101', 'state': 'IN', 'key': 'TEST_UID'})
+# Simuler une clé déposée en salle 206
+socketio.emit('update_room', {'room': '206', 'state': 'IN', 'key': 'TEST_UID'})
 ```
 
 ---
