@@ -1,54 +1,78 @@
+import json
+import paho.mqtt.client as mqtt
+from paho.mqtt.client import CallbackAPIVersion
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
-from xbee_handler import XBeeService
-import threading
-import time
-
-# --- CONFIGURATION ---
-XBEE_PORT = "/dev/tty.usbserial-0001"  # <--- TON EQUIPE DEVRA CHANGER CA (ex: /dev/ttyUSB0 sur Linux/Mac)
-BAUD_RATE = 9600
 
 app = Flask(__name__, template_folder="../frontend/templates")
 app.config['SECRET_KEY'] = 'cesi_secret!'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Variable globale pour tracker l'état de connexion XBee
-xbee_connected = False
+# --- CONFIGURATION MQTT ---
+MQTT_BROKER = "localhost"
+# On s'abonne à toutes les salles via le wildcard '+'
+MQTT_TOPIC = "ecole/salles/+/status"
 
-# --- FONCTION DECLENCHEE QUAND UN MESSAGE XBEE ARRIVE ---
-def process_xbee_data(data):
-    # data contient: {'room': 'A101', 'state': 'IN', ...}
-    # On push l'info directement au frontend via WebSocket
+# Etat de la connexion MQTT
+mqtt_connected = False
 
-    print(f"[SERVER] Préparation de l'envoi de 'update_room' avec les données: {data}")
+def on_connect(client, userdata, flags, reason_code, properties):
+    global mqtt_connected
+    print(f"[MQTT] Tentative de connexion au broker {MQTT_BROKER}...")
+    print(f"[MQTT] Code de retour: {reason_code}")
+    
+    if reason_code == 0:
+        mqtt_connected = True
+        print(f"[MQTT] ✅ Connecté avec succès!")
+        print(f"[MQTT] 📡 Abonnement au topic: {MQTT_TOPIC}")
+        client.subscribe(MQTT_TOPIC)
+    else:
+        mqtt_connected = False
+        print(f"[MQTT] ❌ Échec de connexion, code: {reason_code}")
 
-    socketio.emit('update_room', data)
+def on_subscribe(client, userdata, mid, reason_code_list, properties):
+    print(f"[MQTT] ✅ Abonnement confirmé au topic {MQTT_TOPIC}")
+    print(f"[MQTT] 👂 En écoute des messages...")
 
-    print("[SERVER] 'update_room' a été envoyé à tous les clients.")
+def on_disconnect(client, userdata, flags, reason_code, properties):
+    global mqtt_connected
+    mqtt_connected = False
+    print(f"[MQTT] ⚠️ Déconnecté du broker, code: {reason_code}")
 
-# --- LANCEMENT DU XBEE EN TACHE DE FOND ---
-# On utilise un try/except pour que le serveur Web se lance même si l'XBee n'est pas branché (mode démo)
+def on_message(client, userdata, msg):
+    try:
+        payload = json.loads(msg.payload.decode())
+        print(f"[MQTT] 📨 Message reçu sur '{msg.topic}': {payload}")
+        
+        socketio.emit('update_room', payload)
+        print(f"[SOCKETIO] ✅ Événement 'update_room' envoyé au frontend")
+    except Exception as e:
+        print(f"[MQTT] ❌ Erreur traitement message: {e}")
+
+# Setup du Client MQTT pour le Web
+web_mqtt_client = mqtt.Client(CallbackAPIVersion.VERSION2, "Web_Backend")
+web_mqtt_client.on_connect = on_connect
+web_mqtt_client.on_subscribe = on_subscribe
+web_mqtt_client.on_disconnect = on_disconnect
+web_mqtt_client.on_message = on_message
+
 try:
-    xbee_service = XBeeService(XBEE_PORT, BAUD_RATE, process_xbee_data)
-    xbee_service.start()
-    xbee_connected = True
-    print("[SUCCESS] XBee connecté et opérationnel!")
+    print(f"[MQTT] Connexion au broker {MQTT_BROKER}:1883...")
+    web_mqtt_client.connect(MQTT_BROKER, 1883, 60)
+    web_mqtt_client.loop_start()
+    print(f"[MQTT] Boucle MQTT démarrée en arrière-plan")
 except Exception as e:
-    xbee_connected = False
-    print(f"ATTENTION: XBee non démarré (Test UI uniquement). Erreur: {e}")
+    print(f"[MQTT] ❌ Erreur de connexion: {e}")
 
-# --- ÉVÉNEMENT: Quand un client se connecte au WebSocket ---
 @socketio.on('connect')
-def handle_connect():
-    # On envoie immédiatement l'état du XBee au client
-    emit('xbee_status', {'connected': xbee_connected})
+def handle_web_connect():
+    print(f"[WEB] Client web connecté. État MQTT: {'✅ Connecté' if mqtt_connected else '❌ Déconnecté'}")
+    emit('mqtt_status', {'connected': mqtt_connected})
 
-
-# --- ROUTES WEB ---
 @app.route('/')
 def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    # host='0.0.0.0' permet d'y accéder depuis le réseau local (Wifi CESI) à changé si ça marche pas
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True, use_reloader=False)
+    # Port 5001 pour éviter le conflit AirPlay sur Mac
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)

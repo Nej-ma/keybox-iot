@@ -1,7 +1,7 @@
 import json
 import paho.mqtt.client as mqtt
 from paho.mqtt.client import CallbackAPIVersion
-from backend.xbee_handler import XBeeService
+from xbee_handler import XBeeService
 
 # --- CONFIGURATION ---
 XBEE_PORT = "/dev/tty.usbserial-0001" 
