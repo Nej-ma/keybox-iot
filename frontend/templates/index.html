@@ -140,6 +140,7 @@
     });
 
     socket.on('update_room', (data) => {
+        console.log("[SOCKETIO] Données reçues:", data);
         updateDashboard(data);
     });
 

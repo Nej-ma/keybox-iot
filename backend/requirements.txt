@@ -2,3 +2,4 @@ flask
 flask-socketio
 digi-xbee
 eventlet
+paho-mqtt

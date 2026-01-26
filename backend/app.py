@@ -5,12 +5,12 @@ import threading
 import time
 
 # --- CONFIGURATION ---
-XBEE_PORT = "COM3"  # <--- TON EQUIPE DEVRA CHANGER CA (ex: /dev/ttyUSB0 sur Linux/Mac)
+XBEE_PORT = "/dev/tty.usbserial-0001"  # <--- TON EQUIPE DEVRA CHANGER CA (ex: /dev/ttyUSB0 sur Linux/Mac)
 BAUD_RATE = 9600
 
 app = Flask(__name__, template_folder="../frontend/templates")
 app.config['SECRET_KEY'] = 'cesi_secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Variable globale pour tracker l'état de connexion XBee
 xbee_connected = False
@@ -19,7 +19,12 @@ xbee_connected = False
 def process_xbee_data(data):
     # data contient: {'room': 'A101', 'state': 'IN', ...}
     # On push l'info directement au frontend via WebSocket
+
+    print(f"[SERVER] Préparation de l'envoi de 'update_room' avec les données: {data}")
+
     socketio.emit('update_room', data)
+
+    print("[SERVER] 'update_room' a été envoyé à tous les clients.")
 
 # --- LANCEMENT DU XBEE EN TACHE DE FOND ---
 # On utilise un try/except pour que le serveur Web se lance même si l'XBee n'est pas branché (mode démo)
@@ -38,6 +43,7 @@ def handle_connect():
     # On envoie immédiatement l'état du XBee au client
     emit('xbee_status', {'connected': xbee_connected})
 
+
 # --- ROUTES WEB ---
 @app.route('/')
 def index():
@@ -45,4 +51,4 @@ def index():
 
 if __name__ == '__main__':
     # host='0.0.0.0' permet d'y accéder depuis le réseau local (Wifi CESI) à changé si ça marche pas
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True, use_reloader=False)
