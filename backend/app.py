@@ -3,6 +3,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.client import CallbackAPIVersion
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+import os
 
 app = Flask(__name__, template_folder="../frontend/templates")
 app.config['SECRET_KEY'] = 'cesi_secret!'
@@ -15,6 +16,57 @@ MQTT_TOPIC = "ecole/salles/+/status"
 
 # Etat de la connexion MQTT
 mqtt_connected = False
+
+# Charger la table de correspondance
+CORRESPONDING_TABLE_PATH = os.path.join(os.path.dirname(__file__), 'corresponding_table.json')
+with open(CORRESPONDING_TABLE_PATH, 'r', encoding='utf-8') as f:
+    corresponding_table = json.load(f)
+
+def verify_key(room, key):
+    """
+    Vérifie si la clé correspond à la salle
+    
+    Returns:
+        dict: {
+            'valid': bool,
+            'message': str,
+            'key_name': str or None
+        }
+    """
+    # Cas où la clé est 'N/A' (aucune clé détectée)
+    if key == 'N/A':
+        return {
+            'valid': False,
+            'message': f"Aucune clé détectée dans la salle {room}",
+            'key_name': None
+        }
+    
+    # Vérifier si la clé existe dans la table
+    if key not in corresponding_table:
+        return {
+            'valid': False,
+            'message': f"Clé inconnue '{key}' dans la salle {room}",
+            'key_name': None
+        }
+    
+    # Récupérer les infos de la clé
+    key_info = corresponding_table[key]
+    expected_room = key_info['salle']
+    key_name = key_info['nom_cle']
+    
+    # Vérifier si la clé est dans la bonne salle
+    if expected_room == room:
+        return {
+            'valid': True,
+            'message': f"✅ Clé correcte: '{key_name}' dans la salle {room}",
+            'key_name': key_name
+        }
+    else:
+        return {
+            'valid': False,
+            'message': f"⚠️ ERREUR: '{key_name}' (salle {expected_room}) détectée dans la salle {room}",
+            'key_name': key_name
+        }
 
 def on_connect(client, userdata, flags, reason_code, properties):
     global mqtt_connected
@@ -43,6 +95,18 @@ def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         print(f"[MQTT] 📨 Message reçu sur '{msg.topic}': {payload}")
+        
+        # Vérifier la correspondance de la clé
+        room = payload.get('room')
+        key = payload.get('key')
+        
+        verification = verify_key(room, key)
+        print(f"[VERIFICATION] {verification['message']}")
+        
+        # Enrichir le payload avec les infos de vérification
+        payload['key_valid'] = verification['valid']
+        payload['key_name'] = verification['key_name']
+        payload['verification_message'] = verification['message']
         
         socketio.emit('update_room', payload)
         print(f"[SOCKETIO] ✅ Événement 'update_room' envoyé au frontend")
