@@ -109,7 +109,6 @@ def on_message(client, userdata, msg):
         payload['verification_message'] = verification['message']
         
         socketio.emit('update_room', payload)
-        print(f"[SOCKETIO] ✅ Événement 'update_room' envoyé au frontend")
     except Exception as e:
         print(f"[MQTT] ❌ Erreur traitement message: {e}")
 
@@ -138,5 +137,4 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    # Port 5001 pour éviter le conflit AirPlay sur Mac
-    socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
