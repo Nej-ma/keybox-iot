@@ -1,0 +1,10 @@
+{
+  "B4:75:4F:B0": {
+    "salle": "206",
+    "nom_cle": "Clé Salle 206"
+  }, 
+  "16:E3:04:02" : {
+    "salle": "207",
+    "nom_cle": "Clé Salle 207"
+  }
+}
