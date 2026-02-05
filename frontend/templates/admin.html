@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CESI KeyBox - Administration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <div class="login-page" id="login-page">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                <h1>Administration</h1>
+                <p>Connectez-vous pour acceder aux logs</p>
+            </div>
+            <div class="login-error" id="login-error">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span id="login-error-text"></span>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label">Identifiant</label>
+                    <input type="text" class="form-input" id="login-username" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mot de passe</label>
+                    <input type="password" class="form-input" id="login-password" placeholder="********" required>
+                </div>
+                <button type="submit" class="btn-login" id="btn-login">
+                    <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+                </button>
+            </form>
+            <div class="login-back">
+                <a href="/"><i class="fa-solid fa-arrow-left"></i> Retour au dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="admin-page" style="display: none;">
+        <nav class="navbar">
+            <a href="/" class="navbar-brand">
+                <i class="fa-solid fa-school-flag"></i> CESI KeyBox - Admin
+            </a>
+            <div class="navbar-right">
+                <span class="connection-status" id="connection-status">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                </span>
+                <a href="/" class="btn-nav"><i class="fa-solid fa-chart-simple"></i> Dashboard</a>
+            </div>
+        </nav>
+
+        <div class="admin-layout">
+            <aside class="admin-sidebar">
+                <div class="admin-user">
+                    <div class="admin-avatar" id="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <div class="admin-name" id="admin-name">Admin</div>
+                        <div class="admin-role">Administrateur</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card stat-in">
+                        <div class="stat-value" id="stat-in">0</div>
+                        <div class="stat-label">Entrees</div>
+                    </div>
+                    <div class="stat-card stat-out">
+                        <div class="stat-value" id="stat-out">0</div>
+                        <div class="stat-label">Sorties</div>
+                    </div>
+                    <div class="stat-card stat-alert">
+                        <div class="stat-value" id="stat-alert">0</div>
+                        <div class="stat-label">Alertes</div>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <div class="filters-title">Type</div>
+                    <div class="filter-chips">
+                        <button class="filter-chip active" data-filter="all">Tous</button>
+                        <button class="filter-chip" data-filter="in">Entree</button>
+                        <button class="filter-chip" data-filter="out">Sortie</button>
+                        <button class="filter-chip" data-filter="swap">Swap</button>
+                        <button class="filter-chip" data-filter="alert">Alerte</button>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <div class="filters-title">Salle</div>
+                    <select id="room-filter" class="form-input" style="padding:10px;font-size:0.85rem;background:#16213e;border:1px solid #3d3d5c;color:#fff;border-radius:8px;cursor:pointer;">
+                        <option value="all">Toutes les salles</option>
+                    </select>
+                </div>
+
+                <div class="actions">
+                    <button class="btn-action btn-export" id="btn-export">
+                        <i class="fa-solid fa-download"></i> Exporter CSV
+                    </button>
+                    <button class="btn-action btn-logout" id="btn-clear" style="color: #fd7e14; border-color: #fd7e14;">
+                        <i class="fa-solid fa-trash"></i> Vider logs
+                    </button>
+                    <button class="btn-action btn-logout" id="btn-logout">
+                        <i class="fa-solid fa-right-from-bracket"></i> Deconnexion
+                    </button>
+                </div>
+            </aside>
+
+            <main class="admin-main">
+                <div class="logs-header">
+                    <div class="logs-title"><i class="fa-solid fa-terminal"></i> Logs</div>
+                    <span class="logs-count" id="logs-count">0</span>
+                </div>
+                <div class="logs-container" id="logs-container"></div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let logs = [];
+        let currentFilter = 'all';
+        let currentRoom = 'all';
+        let adminToken = localStorage.getItem('adminToken');
+        let knownRooms = new Set();
+
+        // === AUTH ===
+        function showAdmin(username, logsData, stats) {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('admin-page').style.display = 'block';
+            document.getElementById('admin-name').textContent = username;
+            document.getElementById('admin-avatar').textContent = username.charAt(0).toUpperCase();
+
+            if (logsData) {
+                logs = logsData;
+                updateRoomFilter();
+                renderLogs();
+            }
+            if (stats) updateStats(stats);
+        }
+
+        function showLogin() {
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('admin-page').style.display = 'none';
+        }
+
+        function logout() {
+            socket.emit('admin_logout');
+            localStorage.removeItem('adminToken');
+            adminToken = null;
+            logs = [];
+            showLogin();
+        }
+
+        // === STATS ===
+        function updateStats(stats) {
+            document.getElementById('stat-in').textContent = stats.in || 0;
+            document.getElementById('stat-out').textContent = stats.out || 0;
+            document.getElementById('stat-alert').textContent = stats.alert || 0;
+            document.getElementById('logs-count').textContent = stats.total || logs.length;
+        }
+
+        // === LOGS ===
+        function updateRoomFilter() {
+            const select = document.getElementById('room-filter');
+            const currentValue = select.value;
+
+            // Extraire les salles des logs
+            logs.forEach(log => knownRooms.add(log.room));
+
+            // Reconstruire les options
+            select.innerHTML = '<option value="all">Toutes les salles</option>';
+            Array.from(knownRooms).sort().forEach(room => {
+                select.innerHTML += `<option value="${room}">Salle ${room}</option>`;
+            });
+
+            // Restaurer la selection
+            select.value = currentValue;
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logs-container');
+
+            let filtered = logs;
+
+            // Filtre par salle
+            if (currentRoom !== 'all') {
+                filtered = filtered.filter(log => log.room === currentRoom);
+            }
+
+            // Filtre par type
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(log => {
+                    if (currentFilter === 'in') return log.state === 'IN' && !log.is_swap;
+                    if (currentFilter === 'out') return log.state === 'OUT';
+                    if (currentFilter === 'swap') return log.is_swap;
+                    if (currentFilter === 'alert') return log.is_swap || log.is_multi;
+                    return true;
+                });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="logs-empty">
+                        <i class="fa-solid fa-inbox"></i>
+                        <p>Aucun log</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(log => {
+                let eventClass = 'event-in', icon = 'fa-arrow-right-to-bracket', text = 'ENTREE', logClass = 'log-in';
+
+                if (log.is_multi) {
+                    eventClass = 'event-alert'; icon = 'fa-clone'; text = 'MULTI'; logClass = 'log-alert';
+                } else if (log.is_swap) {
+                    eventClass = 'event-swap'; icon = 'fa-arrows-rotate'; text = 'SWAP'; logClass = 'log-swap';
+                } else if (log.state === 'OUT') {
+                    eventClass = 'event-out'; icon = 'fa-arrow-right-from-bracket'; text = 'SORTIE'; logClass = 'log-out';
+                }
+
+                return `
+                    <div class="log-entry ${logClass}">
+                        <div class="log-header">
+                            <span class="log-room"><i class="fa-solid fa-door-closed"></i> Salle ${log.room}</span>
+                            <span class="log-time">${log.timestamp}</span>
+                        </div>
+                        <div class="log-body">
+                            <span class="log-event ${eventClass}"><i class="fa-solid ${icon}"></i> ${text}</span>
+                            ${log.key_uid && log.key_uid !== 'N/A' ? `<span class="log-key">${log.key_uid}</span>` : ''}
+                        </div>
+                        ${log.message ? `<div class="log-details">${log.message}</div>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
+        function addNewLog(data) {
+            const log = {
+                timestamp: new Date().toLocaleString('fr-FR'),
+                room: data.room,
+                state: data.state,
+                key_uid: data.key,
+                key_name: data.key_name,
+                key_valid: data.key_valid,
+                message: data.verification_message,
+                is_swap: data.swap_detected || false,
+                is_multi: data.multi_badge || false
+            };
+            logs.unshift(log);
+
+            // Ajouter nouvelle salle au filtre si besoin
+            if (!knownRooms.has(data.room)) {
+                knownRooms.add(data.room);
+                updateRoomFilter();
+            }
+
+            renderLogs();
+
+            // Update stats locally
+            const statIn = document.getElementById('stat-in');
+            const statOut = document.getElementById('stat-out');
+            const statAlert = document.getElementById('stat-alert');
+            const logsCount = document.getElementById('logs-count');
+
+            if (data.state === 'IN' && !data.swap_detected) statIn.textContent = parseInt(statIn.textContent) + 1;
+            if (data.state === 'OUT') statOut.textContent = parseInt(statOut.textContent) + 1;
+            if (data.swap_detected || data.multi_badge) statAlert.textContent = parseInt(statAlert.textContent) + 1;
+            logsCount.textContent = logs.length;
+        }
+
+        // === EVENTS ===
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-login');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            socket.emit('admin_login', {
+                username: document.getElementById('login-username').value,
+                password: document.getElementById('login-password').value
+            });
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', logout);
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            if (confirm('Vider tous les logs ?')) {
+                socket.emit('admin_clear_logs');
+                logs = [];
+                renderLogs();
+            }
+        });
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            if (logs.length === 0) return;
+            const csv = ['Timestamp,Salle,Evenement,Cle,Nom,Valide,Message'];
+            logs.forEach(l => {
+                csv.push(`"${l.timestamp}","${l.room}","${l.state}","${l.key_uid || ''}","${l.key_name || ''}","${l.key_valid}","${l.message || ''}"`);
+            });
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `keybox_logs_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        });
+
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                currentFilter = chip.dataset.filter;
+                renderLogs();
+            });
+        });
+
+        document.getElementById('room-filter').addEventListener('change', (e) => {
+            currentRoom = e.target.value;
+            renderLogs();
+        });
+
+        // === SOCKET ===
+        socket.on('connect', () => {
+            document.getElementById('connection-status').innerHTML = '<i class="fa-solid fa-wifi" style="color:#4ade80"></i>';
+            if (adminToken) socket.emit('admin_verify', { token: adminToken });
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connection-status').innerHTML = '<i class="fa-solid fa-wifi-slash" style="color:#f87171"></i>';
+        });
+
+        socket.on('admin_login_response', (data) => {
+            const btn = document.getElementById('btn-login');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Se connecter';
+
+            if (data.success) {
+                localStorage.setItem('adminToken', data.token);
+                adminToken = data.token;
+                showAdmin(data.username, data.logs, data.stats);
+            } else {
+                document.getElementById('login-error-text').textContent = data.message;
+                document.getElementById('login-error').classList.add('show');
+            }
+        });
+
+        socket.on('admin_verify_response', (data) => {
+            if (data.valid) {
+                showAdmin(data.username, data.logs, data.stats);
+            } else {
+                localStorage.removeItem('adminToken');
+                showLogin();
+            }
+        });
+
+        socket.on('admin_logs_response', (data) => {
+            logs = data.logs || [];
+            if (data.stats) updateStats(data.stats);
+            renderLogs();
+        });
+
+        socket.on('update_room', (data) => {
+            if (document.getElementById('admin-page').style.display !== 'none') {
+                addNewLog(data);
+            }
+        });
+    </script>
+
+</body>
+</html>

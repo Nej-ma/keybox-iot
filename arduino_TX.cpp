@@ -13,6 +13,7 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 
 // --- VARIABLES DE SUIVI ---
 bool clePresenteActuellement = false;
+String dernierUID = "";  // Stocke l'UID de la dernière clé détectée
 String roomID = "206"; 
 
 void setup() {
@@ -66,16 +67,23 @@ void loop() {
      lectureReussie = (status == MFRC522::STATUS_OK);
   }
 
-  // 3. Gestion des événements (Envoi uniquement si changement)
-  if (lectureReussie != clePresenteActuellement) {
-    if (lectureReussie) {
-      String uid = getUIDString(rfid.uid);
+  // 3. Gestion des événements
+  if (lectureReussie) {
+    String uid = getUIDString(rfid.uid);
+
+    // Envoi si : nouvelle clé détectée OU UID différent (clé remplacée)
+    if (!clePresenteActuellement || uid != dernierUID) {
       sendKeyEvent(roomID, uid, "IN");
-    } else {
-      // Quand on retire la clé, l'UID n'est plus lisible, on envoie "UNKNOWN" ou le dernier connu
-      sendKeyEvent(roomID, "N/A", "OUT");
+      dernierUID = uid;
     }
-    clePresenteActuellement = lectureReussie;
+    clePresenteActuellement = true;
+  } else {
+    // Clé retirée
+    if (clePresenteActuellement) {
+      sendKeyEvent(roomID, "N/A", "OUT");
+      dernierUID = "";
+    }
+    clePresenteActuellement = false;
   }
 
   rfid.PICC_HaltA();

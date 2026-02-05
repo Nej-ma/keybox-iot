@@ -5,7 +5,7 @@ from xbee_handler import XBeeService
 from datetime import datetime
 
 # --- CONFIGURATION ---
-XBEE_PORT = "/dev/tty.usbserial-0001" 
+XBEE_PORT = "COM5"  # Windows: Silicon Labs CP210x USB (XBee) 
 BAUD_RATE = 9600
 MQTT_BROKER = "localhost"
 
@@ -30,29 +30,29 @@ def log_exchange(direction, protocol, topic, qos=None, data=None, is_confirmable
     
     print(f"[{timestamp}] [{protocol}] {direction} | Topic/Resource: {topic} | {qos_str} | {confirmable_str} {status_str}")
     if data:
-        print(f"  └─ Payload: {data}")
+        print(f"  -> Payload: {data}")
 
 # Configuration du Client MQTT
 mqtt_client = mqtt.Client(CallbackAPIVersion.VERSION2, "XBee_Gateway")
 
 def on_connect(client, userdata, flags, reason_code, properties):
     log_exchange("CONNECT", "MQTT", "Broker", status=f"Code de connexion: {reason_code}")
-    print(f"[GATEWAY] Connecté au Broker MQTT avec le code {reason_code}")
+    print(f"[GATEWAY] Connecte au Broker MQTT avec le code {reason_code}")
 
 mqtt_client.on_connect = on_connect
 mqtt_client.connect(MQTT_BROKER, 1883, 60)
 mqtt_client.loop_start()
 
-# Fonction appelée à chaque réception XBee
+# Fonction appelee a chaque reception XBee
 def process_xbee_data(data):
-    log_exchange("RX", "XBEE", "XBee_Serial", data=data, status="Données Arduino")
+    log_exchange("RX", "XBEE", "XBee_Serial", data=data, status="Donnees Arduino")
     # data est le dictionnaire JSON venant de l'Arduino
     room = data.get('room', 'unknown')
     topic = f"ecole/salles/{room}/status"
     
     # Publication sur le Bus MQTT avec QoS=1 (au moins une fois)
     mqtt_client.publish(topic, json.dumps(data), qos=1, retain=True)
-    log_exchange("TX", "MQTT", topic, qos=1, data=json.dumps(data), status="Données relayées du XBee")
+    log_exchange("TX", "MQTT", topic, qos=1, data=json.dumps(data), status="Donnees relayees du XBee")
 
 # Lancement du service XBee
 try:
@@ -60,9 +60,9 @@ try:
     # On force AP=1 dans ton XBee via XCTU pour que ce service fonctionne
     xbee_service = XBeeService(XBEE_PORT, BAUD_RATE, process_xbee_data)
     xbee_service.start()
-    print("[GATEWAY] Prêt à relayer les données.")
+    print("[GATEWAY] Pret a relayer les donnees.")
 except Exception as e:
-    print(f"[GATEWAY] Erreur fatale : {e}")
+    print(f"[GATEWAY] Erreur fatale: {e}")
 
 # Boucle infinie pour maintenir le script actif
 import time

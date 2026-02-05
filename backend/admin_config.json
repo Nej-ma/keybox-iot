@@ -1,0 +1,6 @@
+{
+  "username": "admin",
+  "password_hash": "11bd8e55f37c15be33ad70af8a62a7ce7ccb60c3e227756e1bb9a61b5d4f08fc",
+  "created_at": "2026-02-04T14:51:43.233205",
+  "note": "CHANGEZ LE MOT DE PASSE! Utilisez /admin/change-password"
+}
