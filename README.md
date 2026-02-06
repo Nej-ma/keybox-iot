@@ -4,15 +4,7 @@ Système de gestion de clés de salles de classe en temps réel utilisant RFID/N
 
 ## Architecture du Système
 
-```
-[Arduino + RFID + XBee]
-         ↓
-[Gateway (XBee → MQTT)]
-         ↓
-[MQTT Broker]
-         ↓
-[Backend Flask + WebSocket] → [Dashboard Web Temps Réel]
-```
+![Architecture du Système](assets/schema_POC.jpeg)
 
 ### Composants par Salle
 

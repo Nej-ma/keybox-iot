@@ -21,13 +21,19 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # --- CONFIG ---
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'localhost')
-MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
+MQTT_PORT = int(os.getenv('MQTT_PORT', 8883))
+MQTT_USE_TLS = os.getenv('MQTT_USE_TLS', 'true').lower() == 'true'
+MQTT_USERNAME = os.getenv('MQTT_USERNAME', 'backend')
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD', 'cesi123')
+MQTT_CA_CERT = os.path.join(os.path.dirname(__file__), '..', os.getenv('MQTT_CA_CERT', 'mqtt_certs/ca.crt'))
+MQTT_CLIENT_CERT = os.path.join(os.path.dirname(__file__), '..', os.getenv('MQTT_CLIENT_CERT', 'mqtt_certs/client.crt'))
+MQTT_CLIENT_KEY = os.path.join(os.path.dirname(__file__), '..', os.getenv('MQTT_CLIENT_KEY', 'mqtt_certs/client.key'))
 MQTT_TOPIC = "ecole/salles/+/status"
 mqtt_connected = False
 
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
-FLASK_PORT = int(os.getenv('FLASK_PORT', 5000))
+FLASK_PORT = int(os.getenv('FLASK_PORT', 5001))
 
 # Sessions
 authenticated_sessions = {}
@@ -130,6 +136,34 @@ mqtt_client = mqtt.Client(CallbackAPIVersion.VERSION2, "Web_Backend")
 mqtt_client.on_connect = on_connect
 mqtt_client.on_disconnect = on_disconnect
 mqtt_client.on_message = on_message
+
+# Configure MQTT authentication
+if MQTT_USERNAME and MQTT_PASSWORD:
+    mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+    print(f"[MQTT] Authentification configuree pour l'utilisateur: {MQTT_USERNAME}")
+
+# Configure TLS if enabled
+if MQTT_USE_TLS:
+    import ssl
+    try:
+        if os.path.exists(MQTT_CA_CERT):
+            mqtt_client.tls_set(
+                ca_certs=MQTT_CA_CERT,
+                certfile=MQTT_CLIENT_CERT if os.path.exists(MQTT_CLIENT_CERT) else None,
+                keyfile=MQTT_CLIENT_KEY if os.path.exists(MQTT_CLIENT_KEY) else None,
+                cert_reqs=ssl.CERT_REQUIRED,
+                tls_version=ssl.PROTOCOL_TLSv1_2
+            )
+            # Disable hostname verification for localhost
+            mqtt_client.tls_insecure_set(True)
+            print(f"[MQTT] TLS active (Port {MQTT_PORT})")
+        else:
+            print(f"[MQTT] Avertissement: Certificat CA non trouve: {MQTT_CA_CERT}")
+            print(f"[MQTT] Connexion sans TLS sur le port {MQTT_PORT}")
+    except Exception as e:
+        print(f"[MQTT] Erreur configuration TLS: {e}")
+else:
+    print(f"[MQTT] Connexion sans TLS sur le port {MQTT_PORT}")
 
 try:
     mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)

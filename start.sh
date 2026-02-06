@@ -37,9 +37,25 @@ if ! command -v mosquitto &> /dev/null; then
     exit 1
 fi
 
-# Demarrer Mosquitto
-echo -e "${GREEN}[1/3] Demarrage de Mosquitto MQTT Broker...${NC}"
-mosquitto -v &
+# Check if MQTT security is configured
+MQTT_CONFIG="$SCRIPT_DIR/mqtt_config/mosquitto.conf"
+if [ ! -f "$MQTT_CONFIG" ]; then
+    echo -e "${YELLOW}[ATTENTION] Configuration MQTT securisee non trouvee!${NC}"
+    echo -e "${YELLOW}Execution de setup_mqtt_security.sh...${NC}"
+    echo ""
+    bash "$SCRIPT_DIR/setup_mqtt_security.sh"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[ERREUR] La configuration de securite a echoue${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+# Demarrer Mosquitto avec configuration TLS
+echo -e "${GREEN}[1/3] Demarrage de Mosquitto MQTT Broker (TLS)...${NC}"
+echo -e "  ${YELLOW}Port 1883: MQTT avec authentification${NC}"
+echo -e "  ${YELLOW}Port 8883: MQTTS (TLS) avec authentification${NC}"
+mosquitto -c "$MQTT_CONFIG" -v &
 MOSQUITTO_PID=$!
 sleep 2
 
