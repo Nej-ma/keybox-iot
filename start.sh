@@ -68,14 +68,14 @@ echo "========================================"
 echo -e "${GREEN}   Tous les services sont lances!${NC}"
 echo "========================================"
 echo ""
-echo "Dashboard: http://localhost:5000"
+echo "Dashboard: http://localhost:5001"
 echo ""
 echo "Appuyez sur Ctrl+C pour arreter tous les services"
 echo ""
 
 # Ouvrir le navigateur (Mac)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    open http://localhost:5000
+    open http://localhost:5001
 fi
 
 # Attendre

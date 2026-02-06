@@ -3,9 +3,13 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.client import CallbackAPIVersion
 from xbee_handler import XBeeService
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 
 # --- CONFIGURATION ---
-XBEE_PORT = "COM5"  # Windows: Silicon Labs CP210x USB (XBee) 
+load_dotenv()
+
+XBEE_PORT = os.getenv("XBEE_PORT")  # Windows: Silicon Labs CP210x USB (XBee) 
 BAUD_RATE = 9600
 MQTT_BROKER = "localhost"
 

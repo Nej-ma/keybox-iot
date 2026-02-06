@@ -238,4 +238,4 @@ if __name__ == '__main__':
     print(f"  Dashboard: http://localhost:{FLASK_PORT}")
     print(f"  Admin: http://localhost:{FLASK_PORT}/admin")
     print("=" * 50)
-    socketio.run(app, host='0.0.0.0', port=FLASK_PORT, debug=False, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=FLASK_PORT, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
