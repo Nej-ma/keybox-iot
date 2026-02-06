@@ -226,6 +226,8 @@ Le Backend et Dashboard se mettront à jour en temps réel.
 - **API Mode** : API Mode 1 (ATAP=1)
 - **PAN ID** : Identique pour tout le réseau (ex: 1234)
 - **Baud Rate** : 9600
+- **EE**: 1 pour activer le chiffrement AES
+- **KY**: par exemple `1A2B3C4D5E6F` pour la clé de chiffrement (doit être identique sur tous les XBee)
 
 ### XBee Coordinator (PC Serveur)
 
@@ -233,6 +235,8 @@ Le Backend et Dashboard se mettront à jour en temps réel.
 - **API Mode** : API Mode 1 (ATAP=1)
 - **PAN ID** : Identique au réseau
 - **Baud Rate** : 9600
+- **EE**: 1 pour activer le chiffrement AES
+- **KY**: par exemple `1A2B3C4D5E6F` pour la clé de chiffrement (doit être identique sur tous les XBee)
 
 Configuration via **XCTU** (logiciel Digi).
 
